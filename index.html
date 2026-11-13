@@ -151,6 +151,7 @@ body.idle #progress{opacity:0}
   <button id="bNext" title="Obra siguiente"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m10 6 6 6-6 6"/></svg></button>
   <span class="ctl-div"></span>
   <button id="bInfo" title="Ficha de la obra"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.6" r=".7" fill="currentColor" stroke="none"/></svg></button>
+  <button id="bRel" title="Solo pinturas religiosas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3v18M8 8h8"/></svg></button>
   <button id="bSettings" title="Ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M18.5 5.5l-1.7 1.7M7.2 16.8l-1.7 1.7"/></svg></button>
   <button id="bFull" title="Pantalla completa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
 </div>
@@ -201,7 +202,7 @@ const API1  = 'https://collectionapi.metmuseum.org/public/collection/v1/objects/
 const $ = s => document.querySelector(s);
 
 const S = Object.assign(
-  { interval: 30, quality: 'original', fit: 'contain', scope: 'all' },
+  { interval: 30, quality: 'original', fit: 'contain', scope: 'all', religious: false },
   JSON.parse(localStorage.getItem('met-gallery') || '{}')
 );
 const save = () => localStorage.setItem('met-gallery', JSON.stringify(S));
@@ -210,7 +211,7 @@ let ids = [], idPos = 0, queue = [], loading = false, total = 0, shown = 0;
 let history = [];
 let cur = null, active = 0, playing = true, elapsed = 0, ready = false, infoLock = false;
 let capT1 = 0, capT2 = 0, idleT = 0, toastT = 0, skipRun = 0, pendingNext = false;
-let loadingSlide = false, hlNoMedium = false, fetchFails = 0;
+let loadingSlide = false, hlNoMedium = false, fetchFails = 0, gen = 0;
 
 window.__errors = [];
 addEventListener('error', e => window.__errors.push(e.message || String(e)));
@@ -266,6 +267,12 @@ function waitFor(cond, ms) {
 const pickImage = o =>
   S.quality === 'web' ? (o.primaryImageSmall || o.primaryImage) : (o.primaryImage || o.primaryImageSmall);
 
+/* fetch con timeout: un pedido colgado nunca bloquea la carga */
+const fetchT = (url, ms) =>
+  (typeof AbortSignal !== 'undefined' && AbortSignal.timeout)
+    ? fetch(url, { signal: AbortSignal.timeout(ms) })
+    : fetch(url);
+
 /* traducción best-effort del campo medium (inglés → español) */
 const MED = [
   ['oil paint', 'óleo'], ['oil', 'óleo'], ['canvas', 'lienzo'], ['tempera', 'témpera'],
@@ -294,16 +301,16 @@ function searchUrl(offset, limit) {
 
 async function fetchIds() {
   hlNoMedium = false;
-  let first = await (await fetch(searchUrl(0, 500))).json();
+  let first = await (await fetchT(searchUrl(0, 500), 20000)).json();
   if ((!first.total || !(first.objectIDs || []).length) && S.scope === 'highlight' && !hlNoMedium) {
     hlNoMedium = true; // reintentar destacadas sin filtro de medio
-    first = await (await fetch(searchUrl(0, 500))).json();
+    first = await (await fetchT(searchUrl(0, 500), 20000)).json();
   }
   total = first.total || 0;
   const all = (first.objectIDs || []).slice();
   let offset = all.length;
   while (total > 0 && offset < Math.min(total, 10000) && offset < 500 + 10000) {
-    const d = await (await fetch(searchUrl(offset, 500))).json();
+    const d = await (await fetchT(searchUrl(offset, 500), 20000)).json();
     const page = d.objectIDs || [];
     if (!page.length) break;
     all.push(...page);
@@ -318,24 +325,48 @@ async function fetchIds() {
 
 const SKIP_CLASS = new Set(['frames', 'drawings', 'photographs', 'textiles']);
 
+/* terminos de iconografia cristiana del vocabulario de tags del Met */
+const RELIGIOUS = new Set(('christ,jesus,christ child,infant jesus,virgin mary,virgin and child,madonna,madonna and child,nativity,holy family,trinity,god,holy spirit,last judgment,last supper,annunciation,resurrection,assumption,ascension,epiphany,baptism,temptation,crucifixion,crucifixions,calvary,golgotha,ecce homo,man of sorrows,pieta,pietas,lamentation,entombment,adoration of the magi,adoration of the shepherds,flight into egypt,pentecost,stigmatization,coronation of the virgin,saints,apostles,evangelists,prophets,sibyls,martyrs,bishops,archbishops,popes,cardinals,abbots,monks,nuns,friars,hermits,priests,clergy,angels,archangels,cherubim,seraphim,devils,satan,demons,magdalene,magi,joseph,bible,bibles,gospel,gospels,psalter,psalters,prayer,prayers,books of hours,book of hours,monasteries,convents,abbey,abbeys,altars,altarpiece,altarpieces,triptychs,polyptychs,crucifix,crucifixes,rosary,rosaries,reliquary,reliquaries,nimbus,halo,halos,croziers,miter,moses,noah,abraham,isaac,jacob,jonah,daniel,job,solomon,david and goliath,judith,susanna,bathsheba,salome,garden of eden,creation,exodus,golden calf,ten commandments').split(','));
+function esReligiosa(o) {
+  for (const t of (o.tags || [])) {
+    const term = (t.term || '').toLowerCase();
+    if (RELIGIOUS.has(term) || term.startsWith('saint ')) return true;
+  }
+  return false;
+}
+
 async function refill(size) {
   if (loading || idPos >= ids.length) return;
   loading = true;
+  const g = gen;
   const batch = ids.slice(idPos, idPos + (size || 36));
   idPos += batch.length;
+  const fails0 = fetchFails;
+  const failedIds = [];
   const objs = await mapLimit(batch, 6, async id => {
-    const r = await fetch(API1 + id);
-    if (!r.ok) return null;
-    const o = await r.json();
-    if (!o.primaryImage && !o.primaryImageSmall) return null;
-    if (o.classification && SKIP_CLASS.has(o.classification.toLowerCase())) return null;
-    return o;
+    try {
+      const r = await fetchT(API1 + id, 15000);
+      if (!r.ok) { fetchFails++; failedIds.push(id); return null; }
+      const o = await r.json();
+      if (!o.primaryImage && !o.primaryImageSmall) return null;
+      if (o.classification && SKIP_CLASS.has(o.classification.toLowerCase())) return null;
+      if (S.religious && !esReligiosa(o)) return null;
+      return o;
+    } catch (e) { fetchFails++; failedIds.push(id); return null; }
   });
-  for (const o of objs) if (o) queue.push(o);
   loading = false;
+  if (g !== gen) { /* lote obtenido con otro filtro: descartar y recargar */
+    if (queue.length < 8 && idPos < ids.length) refill();
+    return;
+  }
+  if (failedIds.length) ids.push(...failedIds); /* los fallados se reintentan más adelante */
+  for (const o of objs) if (o) queue.push(o);
   lStatus('Colección: ' + fmt(total) + ' obras · ' + queue.length + ' preparadas…');
-  if (pendingNext && queue.length) { pendingNext = false; next(); }
-  else if (queue.length < 8 && idPos < ids.length) refill();
+  if (pendingNext && queue.length && !loadingSlide) { pendingNext = false; next(); }
+  else if (queue.length < 8 && idPos < ids.length) {
+    if (fetchFails - fails0 > batch.length / 2) toast('Conexión inestable con el Met; reintentando…');
+    else refill();
+  }
 }
 
 const ensureQueue = () => { if (queue.length < 8) refill(); };
@@ -351,7 +382,20 @@ function show(o) {
   const url = pickImage(o);
   const inactive = slides[1 - active];
   const pre = new Image();
+  let settled = false;
+  const guard = setTimeout(() => {
+    if (settled) return;
+    settled = true;
+    pre.onload = pre.onerror = null;
+    pre.src = '';
+    loadingSlide = false;
+    if (++skipRun < 6) next();
+    else toast('La imagen no se pudo cargar; probá con otra obra');
+  }, 30000);
   pre.onload = () => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(guard);
     loadingSlide = false;
     const el = document.createElement('img');
     el.src = url;
@@ -373,8 +417,12 @@ function show(o) {
     elapsed = 0;
     progressEl.style.width = '0%';
     skipRun = 0;
+    if (pendingNext && queue.length) { pendingNext = false; next(); }
   };
   pre.onerror = () => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(guard);
     loadingSlide = false;
     if (++skipRun < 6) next();
     else toast('La imagen no se pudo cargar; probá con otra obra');
@@ -404,8 +452,14 @@ function captionCycle() {
 
 function next() {
   if (loadingSlide) return;
+  pendingNext = false;
   if (!queue.length) {
     if (idPos < ids.length) { pendingNext = true; toast('Cargando más obras…'); refill(); }
+    else if (ids.length) { /* vuelta completa: reiniciar la galería reordenada */
+      ids = shuffle(ids); idPos = 0; pendingNext = true;
+      toast('Vuelta completa a la galería; reiniciando…');
+      refill(36);
+    }
     else toast('No hay más obras disponibles');
     return;
   }
@@ -455,6 +509,24 @@ function toggleInfo() {
   captionCycle();
 }
 
+function updateReligiousBtn() {
+  $('#bRel').classList.toggle('active', !!S.religious);
+  $('#bRel').title = S.religious ? 'Mostrar toda la colección' : 'Solo pinturas religiosas';
+}
+
+function toggleReligious() {
+  S.religious = !S.religious;
+  save();
+  updateReligiousBtn();
+  gen++;
+  queue = [];
+  history = [];
+  idPos = 0;
+  pendingNext = true;
+  toast(S.religious ? 'Solo pinturas religiosas' : 'Toda la colección');
+  refill(36);
+}
+
 async function toggleFS() {
   try {
     if (document.fullscreenElement) await document.exitFullscreen();
@@ -496,9 +568,11 @@ function applySettingsUI() {
     $(id).querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === S[k]));
   });
   setPlaying(playing);
+  updateReligiousBtn();
 }
 
 async function changeScope() {
+  gen++;
   toast('Cargando colección…');
   try {
     await fetchIds();
@@ -513,6 +587,7 @@ $('#bPrev').onclick = prev;
 $('#bNext').onclick = next;
 $('#bPlay').onclick = () => setPlaying(!playing);
 $('#bInfo').onclick = toggleInfo;
+$('#bRel').onclick = toggleReligious;
 $('#bFull').onclick = toggleFS;
 $('#bSettings').onclick = e => { e.stopPropagation(); $('#settings').classList.toggle('open'); };
 $('#dur').oninput = e => {
@@ -541,6 +616,7 @@ addEventListener('keydown', e => {
   else if (e.key === ' ') { e.preventDefault(); setPlaying(!playing); }
   else if (e.key.toLowerCase() === 'f') toggleFS();
   else if (e.key.toLowerCase() === 'i') toggleInfo();
+  else if (e.key.toLowerCase() === 'r') toggleReligious();
   else if (e.key === 'Escape') $('#settings').classList.remove('open');
 });
 document.querySelectorAll('#controls button, .seg button').forEach(b =>
@@ -554,7 +630,12 @@ document.querySelectorAll('#controls button, .seg button').forEach(b =>
     await fetchIds();
     lStatus('Colección: ' + fmt(total) + ' obras · preparando la primera…');
     refill(12);
-    await waitFor(() => queue.length >= 1, 90000);
+    const janitor = setInterval(() => {
+      if (!queue.length && !loading && idPos < ids.length) refill(12);
+    }, 15000);
+    try {
+      await waitFor(() => queue.length >= 1, 120000);
+    } finally { clearInterval(janitor); }
     ready = true;
     next();
     const l = $('#loader');
@@ -573,7 +654,7 @@ window.__met = () => ({
   ready, playing, shown, total, queueLen: queue.length,
   idPos, idsLen: ids.length, fetchFails, errors: window.__errors.slice(0, 5),
   settings: { ...S },
-  cur: cur && { title: cur.title, artist: cur.artistDisplayName, date: cur.objectDate, medium: cur.medium, url: pickImage(cur) },
+  cur: cur && { title: cur.title, artist: cur.artistDisplayName, date: cur.objectDate, medium: cur.medium, url: pickImage(cur), tags: (cur.tags || []).map(t => t.term).slice(0, 10) },
   img: (() => {
     const i = document.querySelector('.slide.on img');
     return i && { w: i.naturalWidth, h: i.naturalHeight, kb: i.className, src: i.src.split('/').slice(-2).join('/') };
