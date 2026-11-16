@@ -151,7 +151,7 @@ body.idle #progress{opacity:0}
   <button id="bNext" title="Obra siguiente"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m10 6 6 6-6 6"/></svg></button>
   <span class="ctl-div"></span>
   <button id="bInfo" title="Ficha de la obra"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.6" r=".7" fill="currentColor" stroke="none"/></svg></button>
-  <button id="bRel" title="Solo pinturas religiosas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3v18M8 8h8"/></svg></button>
+  <button id="bRel" title="Ocultar pinturas religiosas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3v18M8 8h8"/></svg></button>
   <button id="bSettings" title="Ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M18.5 5.5l-1.7 1.7M7.2 16.8l-1.7 1.7"/></svg></button>
   <button id="bFull" title="Pantalla completa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
 </div>
@@ -202,7 +202,7 @@ const API1  = 'https://collectionapi.metmuseum.org/public/collection/v1/objects/
 const $ = s => document.querySelector(s);
 
 const S = Object.assign(
-  { interval: 30, quality: 'original', fit: 'contain', scope: 'all', religious: false },
+  { interval: 30, quality: 'original', fit: 'contain', scope: 'all', noReligious: false },
   JSON.parse(localStorage.getItem('met-gallery') || '{}')
 );
 const save = () => localStorage.setItem('met-gallery', JSON.stringify(S));
@@ -350,7 +350,7 @@ async function refill(size) {
       const o = await r.json();
       if (!o.primaryImage && !o.primaryImageSmall) return null;
       if (o.classification && SKIP_CLASS.has(o.classification.toLowerCase())) return null;
-      if (S.religious && !esReligiosa(o)) return null;
+      if (S.noReligious && esReligiosa(o)) return null;
       return o;
     } catch (e) { fetchFails++; failedIds.push(id); return null; }
   });
@@ -510,12 +510,12 @@ function toggleInfo() {
 }
 
 function updateReligiousBtn() {
-  $('#bRel').classList.toggle('active', !!S.religious);
-  $('#bRel').title = S.religious ? 'Mostrar toda la colección' : 'Solo pinturas religiosas';
+  $('#bRel').classList.toggle('active', !!S.noReligious);
+  $('#bRel').title = S.noReligious ? 'Mostrar toda la colección' : 'Ocultar pinturas religiosas';
 }
 
 function toggleReligious() {
-  S.religious = !S.religious;
+  S.noReligious = !S.noReligious;
   save();
   updateReligiousBtn();
   gen++;
@@ -523,7 +523,7 @@ function toggleReligious() {
   history = [];
   idPos = 0;
   pendingNext = true;
-  toast(S.religious ? 'Solo pinturas religiosas' : 'Toda la colección');
+  toast(S.noReligious ? 'Sin pinturas religiosas' : 'Toda la colección');
   refill(36);
 }
 
