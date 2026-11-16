@@ -4,11 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#070707">
 <title>Met Gallery · Pinturas Europeas</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%23070707'/%3E%3Crect x='5' y='5' width='14' height='14' rx='2' fill='none' stroke='%23c9a86a' stroke-width='1.6'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"></noscript>
 <style>
 :root{
   --bg:#070707;
@@ -25,14 +27,15 @@ body{
   margin:0;background:var(--bg);color:var(--ink);
   font-family:Inter,system-ui,-apple-system,'Segoe UI',sans-serif;
   overflow:hidden;user-select:none;-webkit-user-select:none;
+  -webkit-tap-highlight-color:transparent;
 }
 body.idle{cursor:none}
 button{font-family:inherit}
 
 /* ---------- diapositivas ---------- */
-.slide{position:fixed;inset:0;opacity:0;transition:opacity 1.5s ease;will-change:opacity}
+.slide{position:fixed;top:0;left:0;width:100%;height:100%;opacity:0;transition:opacity 1.5s ease;will-change:opacity}
 .slide.on{opacity:1}
-.slide img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;will-change:transform}
+.slide img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain}
 body.fit-cover .slide img{object-fit:cover}
 .kb0{animation:kb0 linear forwards}
 .kb1{animation:kb1 linear forwards}
@@ -45,37 +48,38 @@ body.fit-cover .slide img{object-fit:cover}
 @media (prefers-reduced-motion:reduce){.slide img{animation:none!important}}
 
 /* ---------- caption ---------- */
-#scrim{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .9s ease;
+#scrim{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;opacity:0;transition:opacity .9s ease;
   background:linear-gradient(to top,rgba(0,0,0,.66),rgba(0,0,0,.3) 26%,transparent 56%)}
 #scrim.show{opacity:1}
-#caption{position:fixed;left:clamp(20px,4vw,56px);bottom:clamp(20px,5vh,52px);
-  max-width:min(46ch,82vw);opacity:0;transform:translateY(12px);
+#caption{position:fixed;left:32px;bottom:36px;max-width:640px;
+  left:clamp(20px,4vw,56px);bottom:clamp(20px,5vh,52px);max-width:min(46ch,82vw);
+  opacity:0;transform:translateY(12px);
   transition:opacity .7s ease,transform .7s ease;pointer-events:none}
 #caption.show,#caption.locked{opacity:1;transform:none}
 #caption.show .c-link,#caption.locked .c-link{pointer-events:auto}
 .c-title{font-family:'Cormorant Garamond',Georgia,'Times New Roman',serif;font-weight:500;
-  font-size:clamp(24px,3.2vw,44px);line-height:1.12;
+  font-size:34px;font-size:clamp(24px,3.2vw,44px);line-height:1.12;
   display:-webkit-box;-webkit-line-orient:vertical;-webkit-line-clamp:3;overflow:hidden;
   text-shadow:0 1px 26px rgba(0,0,0,.75)}
 .c-meta{margin-top:10px;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
 .c-meta .date{color:var(--faint);margin-left:10px;letter-spacing:.12em}
 .c-sub{margin-top:6px;font-size:12.5px;color:var(--faint)}
-.c-link{display:inline-flex;align-items:center;gap:7px;margin-top:14px;
+.c-link{display:inline-flex;align-items:center;margin-top:14px;
   font-size:12px;letter-spacing:.08em;color:var(--gold);text-decoration:none;
   border-bottom:1px solid rgba(201,168,106,.35);padding-bottom:2px}
 .c-link:hover{border-color:var(--gold)}
-.c-link svg{width:11px;height:11px}
+.c-link svg{width:11px;height:11px;margin-left:7px}
 
 /* ---------- controles ---------- */
 #controls{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);
-  display:flex;align-items:center;gap:4px;padding:7px;z-index:10;
+  display:flex;align-items:center;padding:7px;z-index:10;
   background:var(--glass);border:1px solid var(--line);border-radius:999px;
   backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
   transition:opacity .45s ease,transform .45s ease}
 body.idle #controls{opacity:0;transform:translate(-50%,12px);pointer-events:none}
 #controls button{appearance:none;border:0;background:transparent;color:var(--ink);
   width:40px;height:40px;border-radius:50%;display:grid;place-items:center;cursor:pointer;
-  transition:background .2s,color .2s}
+  margin:0 2px;transition:background .2s,color .2s}
 #controls button:hover{background:rgba(255,255,255,.09)}
 #controls button.active{color:var(--gold)}
 #controls svg{width:19px;height:19px}
@@ -83,7 +87,7 @@ body.idle #controls{opacity:0;transform:translate(-50%,12px);pointer-events:none
 
 /* ---------- ajustes ---------- */
 #settings{position:fixed;left:50%;bottom:92px;transform:translate(-50%,8px);
-  width:min(340px,calc(100vw - 32px));z-index:11;
+  width:340px;max-width:calc(100vw - 32px);z-index:11;
   background:var(--glass);border:1px solid var(--line);border-radius:20px;
   backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
   padding:20px 22px;opacity:0;pointer-events:none;
@@ -94,11 +98,11 @@ body.idle #controls{opacity:0;transform:translate(-50%,12px);pointer-events:none
 .set-label{display:flex;justify-content:space-between;align-items:baseline;
   font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:9px}
 .set-label b{color:var(--ink);font-weight:600;letter-spacing:.06em}
-.seg{display:flex;gap:3px;padding:3px;background:rgba(255,255,255,.06);
+.seg{display:flex;padding:3px;background:rgba(255,255,255,.06);
   border:1px solid var(--line);border-radius:10px}
 .seg button{flex:1;border:0;background:transparent;color:var(--dim);
   font-size:12.5px;font-weight:500;padding:7px 4px;border-radius:7px;cursor:pointer;
-  transition:background .2s,color .2s}
+  margin:0 1px;transition:background .2s,color .2s}
 .seg button.on{background:rgba(255,255,255,.13);color:var(--ink)}
 input[type=range]{width:100%;accent-color:var(--gold);cursor:pointer}
 
@@ -116,11 +120,11 @@ body.idle #progress{opacity:0}
   color:var(--faint);opacity:0;transition:opacity .6s;pointer-events:none}
 #hint.show{opacity:1}
 #hint b{color:var(--dim);font-weight:600}
-#loader{position:fixed;inset:0;z-index:20;display:grid;place-content:center;justify-items:center;
+#loader{position:fixed;top:0;left:0;width:100%;height:100%;z-index:20;display:grid;place-content:center;justify-items:center;
   gap:14px;background:var(--bg);transition:opacity .9s ease}
 #loader.off{opacity:0;pointer-events:none}
 .l-museum{font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:var(--faint)}
-.l-title{font-family:'Cormorant Garamond',Georgia,serif;font-size:clamp(30px,5vw,52px);font-weight:500}
+.l-title{font-family:'Cormorant Garamond',Georgia,serif;font-size:44px;font-size:clamp(30px,5vw,52px);font-weight:500}
 .l-spin{width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,.14);
   border-top-color:var(--gold);animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(1turn)}}
@@ -151,7 +155,6 @@ body.idle #progress{opacity:0}
   <button id="bNext" title="Obra siguiente"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m10 6 6 6-6 6"/></svg></button>
   <span class="ctl-div"></span>
   <button id="bInfo" title="Ficha de la obra"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.6" r=".7" fill="currentColor" stroke="none"/></svg></button>
-  <button id="bRel" title="Ocultar pinturas religiosas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 3v18M8 8h8"/></svg></button>
   <button id="bSettings" title="Ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M18.5 5.5l-1.7 1.7M7.2 16.8l-1.7 1.7"/></svg></button>
   <button id="bFull" title="Pantalla completa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
 </div>
@@ -182,6 +185,13 @@ body.idle #progress{opacity:0}
       <button data-v="highlight">Destacadas</button>
     </div>
   </div>
+  <div class="set-row">
+    <div class="set-label"><span>Obras religiosas</span></div>
+    <div class="seg" id="segR">
+      <button data-v="incluir">Incluir</button>
+      <button data-v="ocultar">Ocultar</button>
+    </div>
+  </div>
 </div>
 
 <div id="progress"><i></i></div>
@@ -201,8 +211,13 @@ const API11 = 'https://collectionapi.metmuseum.org/public/collection/v1.1/search
 const API1  = 'https://collectionapi.metmuseum.org/public/collection/v1/objects/';
 const $ = s => document.querySelector(s);
 
+/* hardware modesto o pantalla táctil grande (IdeaHub): calidad Web por defecto */
+const MODEST_HW = (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 4;
+const BIG_TOUCH = ('ontouchstart' in window) && Math.max(screen.width || 0, screen.height || 0) >= 2200;
 const S = Object.assign(
-  { interval: 30, quality: 'original', fit: 'contain', scope: 'all', noReligious: false },
+  { interval: 30,
+    quality: (MODEST_HW || BIG_TOUCH) ? 'web' : 'original',
+    fit: 'contain', scope: 'all', noReligious: false },
   JSON.parse(localStorage.getItem('met-gallery') || '{}')
 );
 const save = () => localStorage.setItem('met-gallery', JSON.stringify(S));
@@ -211,7 +226,7 @@ let ids = [], idPos = 0, queue = [], loading = false, total = 0, shown = 0;
 let history = [];
 let cur = null, active = 0, playing = true, elapsed = 0, ready = false, infoLock = false;
 let capT1 = 0, capT2 = 0, idleT = 0, toastT = 0, skipRun = 0, pendingNext = false;
-let loadingSlide = false, hlNoMedium = false, fetchFails = 0, gen = 0;
+let loadingSlide = false, hlNoMedium = false, fetchFails = 0, gen = 0, webFallbacks = 0;
 
 window.__errors = [];
 addEventListener('error', e => window.__errors.push(e.message || String(e)));
@@ -379,55 +394,78 @@ function preloadAhead() {
 function show(o) {
   loadingSlide = true;
   cur = o; shown++;
-  const url = pickImage(o);
+  /* cadena de calidad: primero la preferida, luego la alternativa */
+  const urls = [];
+  const first = pickImage(o);
+  urls.push(first);
+  const alt = first === o.primaryImage ? o.primaryImageSmall : o.primaryImage;
+  if (alt && alt !== first) urls.push(alt);
   const inactive = slides[1 - active];
-  const pre = new Image();
-  let settled = false;
-  const guard = setTimeout(() => {
-    if (settled) return;
-    settled = true;
-    pre.onload = pre.onerror = null;
-    pre.src = '';
+  let attempt = 0, settled = false, guard = 0, pre = null;
+
+  const giveUp = () => {
     loadingSlide = false;
     if (++skipRun < 6) next();
-    else toast('La imagen no se pudo cargar; probá con otra obra');
-  }, 30000);
-  pre.onload = () => {
+    else toast('No se pueden cargar las imágenes del Met desde esta red');
+  };
+  const fail = () => {
     if (settled) return;
     settled = true;
     clearTimeout(guard);
-    loadingSlide = false;
-    const el = document.createElement('img');
-    el.src = url;
-    el.alt = o.title || '';
-    el.draggable = false;
-    el.className = 'kb' + (Math.random() * 4 | 0);
-    el.style.animationDuration = S.interval + 's';
-    if (!playing) el.style.animationPlayState = 'paused';
-    inactive.innerHTML = '';
-    inactive.appendChild(el);
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      inactive.classList.add('on');
-      const old = slides[active];
-      slides[active].classList.remove('on');
-      active = 1 - active;
-      setTimeout(() => { if (!old.classList.contains('on')) old.innerHTML = ''; }, 1800);
-    }));
-    fillCaption(o);
-    elapsed = 0;
-    progressEl.style.width = '0%';
-    skipRun = 0;
-    if (pendingNext && queue.length) { pendingNext = false; next(); }
+    attempt++;
+    if (attempt >= urls.length) { giveUp(); return; }
+    load();
   };
-  pre.onerror = () => {
-    if (settled) return;
-    settled = true;
-    clearTimeout(guard);
-    loadingSlide = false;
-    if (++skipRun < 6) next();
-    else toast('La imagen no se pudo cargar; probá con otra obra');
+  const load = () => {
+    settled = false;
+    pre = new Image();
+    guard = setTimeout(() => {
+      if (settled) return;
+      pre.onload = pre.onerror = null;
+      pre.src = '';
+      fail();
+    }, 30000);
+    pre.onload = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(guard);
+      loadingSlide = false;
+      if (attempt > 0) {
+        webFallbacks++;
+        if (S.quality === 'original' && webFallbacks >= 3) {
+          S.quality = 'web'; save();
+          document.querySelectorAll('#segQ button').forEach(b =>
+            b.classList.toggle('on', b.dataset.v === S.quality));
+          toast('Calidad cambiada a Web para este equipo');
+        }
+      } else webFallbacks = 0;
+      const el = document.createElement('img');
+      el.src = urls[attempt];
+      el.alt = o.title || '';
+      el.draggable = false;
+      el.decoding = 'async';
+      el.className = 'kb' + (Math.random() * 4 | 0);
+      el.style.animationDuration = S.interval + 's';
+      if (!playing) el.style.animationPlayState = 'paused';
+      inactive.innerHTML = '';
+      inactive.appendChild(el);
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        inactive.classList.add('on');
+        const old = slides[active];
+        slides[active].classList.remove('on');
+        active = 1 - active;
+        setTimeout(() => { if (!old.classList.contains('on')) old.innerHTML = ''; }, 1800);
+      }));
+      fillCaption(o);
+      elapsed = 0;
+      progressEl.style.width = '0%';
+      skipRun = 0;
+      if (pendingNext && queue.length) { pendingNext = false; next(); }
+    };
+    pre.onerror = fail;
+    pre.src = urls[attempt];
   };
-  pre.src = url;
+  load();
 }
 
 function fillCaption(o) {
@@ -509,21 +547,22 @@ function toggleInfo() {
   captionCycle();
 }
 
-function updateReligiousBtn() {
-  $('#bRel').classList.toggle('active', !!S.noReligious);
-  $('#bRel').title = S.noReligious ? 'Mostrar toda la colección' : 'Ocultar pinturas religiosas';
+function updateReligiousSeg() {
+  document.querySelectorAll('#segR button').forEach(b =>
+    b.classList.toggle('on', (b.dataset.v === 'ocultar') === !!S.noReligious));
 }
 
-function toggleReligious() {
-  S.noReligious = !S.noReligious;
+function setNoReligious(v) {
+  if (S.noReligious === v) return;
+  S.noReligious = v;
   save();
-  updateReligiousBtn();
+  updateReligiousSeg();
   gen++;
   queue = [];
   history = [];
   idPos = 0;
   pendingNext = true;
-  toast(S.noReligious ? 'Sin pinturas religiosas' : 'Toda la colección');
+  toast(v ? 'Sin pinturas religiosas' : 'Toda la colección');
   refill(36);
 }
 
@@ -568,7 +607,7 @@ function applySettingsUI() {
     $(id).querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === S[k]));
   });
   setPlaying(playing);
-  updateReligiousBtn();
+  updateReligiousSeg();
 }
 
 async function changeScope() {
@@ -587,7 +626,8 @@ $('#bPrev').onclick = prev;
 $('#bNext').onclick = next;
 $('#bPlay').onclick = () => setPlaying(!playing);
 $('#bInfo').onclick = toggleInfo;
-$('#bRel').onclick = toggleReligious;
+document.querySelectorAll('#segR button').forEach(b =>
+  b.addEventListener('click', () => setNoReligious(b.dataset.v === 'ocultar')));
 $('#bFull').onclick = toggleFS;
 $('#bSettings').onclick = e => { e.stopPropagation(); $('#settings').classList.toggle('open'); };
 $('#dur').oninput = e => {
@@ -608,6 +648,20 @@ document.addEventListener('click', e => {
 document.addEventListener('dblclick', e => {
   if (!e.target.closest('#controls,#settings,#caption')) toggleFS();
 });
+
+/* swipe en pantallas táctiles (IdeaHub): deslizar cambia de obra */
+let touchX = null, touchY = null;
+addEventListener('touchstart', e => {
+  const t = e.touches[0];
+  touchX = t.clientX; touchY = t.clientY;
+}, { passive: true });
+addEventListener('touchend', e => {
+  if (touchX === null) return;
+  const t = e.changedTouches[0];
+  const dx = t.clientX - touchX, dy = t.clientY - touchY;
+  touchX = null;
+  if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) { if (dx < 0) next(); else prev(); }
+}, { passive: true });
 addEventListener('keydown', e => {
   const t = e.target;
   if (t && t.tagName === 'INPUT' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) return;
@@ -616,7 +670,6 @@ addEventListener('keydown', e => {
   else if (e.key === ' ') { e.preventDefault(); setPlaying(!playing); }
   else if (e.key.toLowerCase() === 'f') toggleFS();
   else if (e.key.toLowerCase() === 'i') toggleInfo();
-  else if (e.key.toLowerCase() === 'r') toggleReligious();
   else if (e.key === 'Escape') $('#settings').classList.remove('open');
 });
 document.querySelectorAll('#controls button, .seg button').forEach(b =>
@@ -641,6 +694,8 @@ document.querySelectorAll('#controls button, .seg button').forEach(b =>
     const l = $('#loader');
     l.classList.remove('off');
     setTimeout(() => l.remove(), 1000);
+    if ('ontouchstart' in window)
+      $('#hint').innerHTML = 'Deslizá para cambiar de obra · doble toque: pantalla completa';
     $('#hint').classList.add('show');
     setTimeout(() => $('#hint').classList.remove('show'), 9000);
   } catch (e) {

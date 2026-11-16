@@ -17,9 +17,11 @@ Un screensaver de arte para el navegador: slideshow a pantalla completa con las 
   - Colección: toda la galería o solo las obras destacadas del Met
 - Carga por lotes en segundo plano y precarga de las próximas imágenes: sin cortes entre obras.
 - Wake Lock API: en pantalla completa, evita que el monitor se apague.
-- **Ocultar pinturas religiosas**: toggle en la barra inferior (o tecla `R`) que excluye de la galería la iconografía cristiana (Madonnas, santos, crucifixiones, natividades…), detectada por los tags de tema del Met.
+- **Ocultar pinturas religiosas**: opción en Ajustes que excluye de la galería la iconografía cristiana (Madonnas, santos, crucifixiones, natividades…), detectada por los tags de tema del Met.
 
-![Filtro para ocultar pinturas religiosas activo](assets/preview-religiosas.png)
+![Opción "Ocultar pinturas religiosas" en Ajustes](assets/preview-religiosas.png)
+
+- **Pantallas táctiles** (Huawei IdeaHub, tablets): deslizá horizontalmente para cambiar de obra; los controles aparecen al tocar la pantalla.
 
 ## Uso local
 
@@ -31,7 +33,6 @@ Abrí `index.html` en cualquier navegador moderno. No requiere servidor, build n
 | `Espacio` | Pausar / reanudar |
 | `F` o doble clic | Pantalla completa |
 | `I` | Fijar la ficha de la obra |
-| `R` | Ocultar pinturas religiosas |
 | `Esc` | Cerrar ajustes |
 
 ## Deploy
@@ -53,7 +54,8 @@ Settings → Pages → Deploy from a branch → `main` / root. Cero configuraci�
 - **Listado de obras**: `/public/collection/v1.1/search?departmentId=11&hasImages=true&medium=Paintings` — endpoint v1.1 (paginado con `offset`/`limit`); el endpoint `/v1/search` se retiró en octubre de 2026. El filtro `medium=Paintings` deja fuera los marcos y dibujos que el departamento también contiene.
 - **Detalle e imagen**: `/public/collection/v1/objects/{id}` → `primaryImage` (original) y `primaryImageSmall` (web).
 - Las imágenes se muestran en caliente desde `images.metmuseum.org`; este repo no copia ni almacena ninguna imagen.
-- **Filtro religioso**: client-side, sobre el campo `tags` de cada obra; con el toggle activo se **excluyen** las obras con iconografía religiosa (vocabulario del Met: *Christ*, *Virgin Mary*, *Saints*, *Nativity*, *Crucifixion*, *Madonna and Child*, etc.).
+- **Filtro religioso**: client-side, sobre el campo `tags` de cada obra; con la opción de Ajustes activa se **excluyen** las obras con iconografía religiosa (vocabulario del Met: *Christ*, *Virgin Mary*, *Saints*, *Nativity*, *Crucifixion*, *Madonna and Child*, etc.).
+- **Compatibilidad**: tipografías con carga no bloqueante y CSS con fallbacks (funciona en motores antiguos y en redes que bloquean Google Fonts); en hardware modesto se usa la calidad Web por defecto. Si una imagen en calidad original no carga, se reintenta automáticamente con la versión Web (y tras tres reintentos la calidad pasa a Web sola).
 
 ## Créditos
 
