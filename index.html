@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#070707">
-<title>Met Gallery · Pinturas Europeas</title>
+<title>Galería de arte · Met · MoMA · Cleveland</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%23070707'/%3E%3Crect x='5' y='5' width='14' height='14' rx='2' fill='none' stroke='%23c9a86a' stroke-width='1.6'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -104,6 +104,7 @@ body.idle #controls{opacity:0;transform:translate(-50%,12px);pointer-events:none
   font-size:12.5px;font-weight:500;padding:7px 4px;border-radius:7px;cursor:pointer;
   margin:0 1px;transition:background .2s,color .2s}
 .seg button.on{background:rgba(255,255,255,.13);color:var(--ink)}
+.seg button:disabled{opacity:.35;pointer-events:none}
 input[type=range]{width:100%;accent-color:var(--gold);cursor:pointer}
 
 /* ---------- progreso / avisos / cargador ---------- */
@@ -142,7 +143,7 @@ body.idle #progress{opacity:0}
   <div class="c-title"></div>
   <div class="c-meta"><span class="c-artist"></span><span class="date"></span></div>
   <div class="c-sub"></div>
-  <a class="c-link" target="_blank" rel="noopener">Ver en el Met
+  <a class="c-link" target="_blank" rel="noopener">Ver en <span class="src">el Met</span>
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg>
   </a>
 </div>
@@ -160,6 +161,15 @@ body.idle #progress{opacity:0}
 </div>
 
 <div id="settings">
+  <div class="set-row">
+    <div class="set-label"><span>Museo</span></div>
+    <div class="seg" id="segM">
+      <button data-v="met">Met</button>
+      <button data-v="moma">MoMA</button>
+      <button data-v="cma">Cleveland</button>
+      <button data-v="all">Todos</button>
+    </div>
+  </div>
   <div class="set-row">
     <div class="set-label"><span>Duración por obra</span><b id="durVal">30 s</b></div>
     <input type="range" id="dur" min="5" max="120" step="5" value="30">
@@ -198,12 +208,13 @@ body.idle #progress{opacity:0}
 <div id="toast"></div>
 
 <div id="loader">
-  <div class="l-museum">The Metropolitan Museum of Art</div>
-  <div class="l-title">Pinturas Europeas</div>
+  <div class="l-museum">The Met · MoMA · Cleveland Museum of Art</div>
+  <div class="l-title">Galería de pinturas</div>
   <div class="l-spin"></div>
   <div class="l-status" id="lStatus">Conectando con la colección…</div>
 </div>
 
+<script src="moma-paintings.js"></script>
 <script>
 'use strict';
 /* ================= estado ================= */
@@ -214,10 +225,11 @@ const $ = s => document.querySelector(s);
 /* hardware modesto o pantalla táctil grande (IdeaHub): calidad Web por defecto */
 const MODEST_HW = (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 4;
 const BIG_TOUCH = ('ontouchstart' in window) && Math.max(screen.width || 0, screen.height || 0) >= 2200;
+const MOMA = window.MOMA_PAINTINGS || [];
 const S = Object.assign(
   { interval: 30,
     quality: (MODEST_HW || BIG_TOUCH) ? 'web' : 'original',
-    fit: 'contain', scope: 'all', noReligious: false },
+    fit: 'contain', scope: 'all', noReligious: false, museum: 'met' },
   JSON.parse(localStorage.getItem('met-gallery') || '{}')
 );
 const save = () => localStorage.setItem('met-gallery', JSON.stringify(S));
@@ -226,7 +238,7 @@ let ids = [], idPos = 0, queue = [], loading = false, total = 0, shown = 0;
 let history = [];
 let cur = null, active = 0, playing = true, elapsed = 0, ready = false, infoLock = false;
 let capT1 = 0, capT2 = 0, idleT = 0, toastT = 0, skipRun = 0, pendingNext = false;
-let loadingSlide = false, hlNoMedium = false, fetchFails = 0, gen = 0, webFallbacks = 0;
+let loadingSlide = false, hlNoMedium = false, fetchFails = 0, gen = 0, webFallbacks = 0, cmaData = null;
 
 window.__errors = [];
 addEventListener('error', e => window.__errors.push(e.message || String(e)));
@@ -314,17 +326,17 @@ function searchUrl(offset, limit) {
   return q + '&offset=' + offset + '&limit=' + limit;
 }
 
-async function fetchIds() {
+async function fetchMetIds() {
   hlNoMedium = false;
   let first = await (await fetchT(searchUrl(0, 500), 20000)).json();
   if ((!first.total || !(first.objectIDs || []).length) && S.scope === 'highlight' && !hlNoMedium) {
     hlNoMedium = true; // reintentar destacadas sin filtro de medio
     first = await (await fetchT(searchUrl(0, 500), 20000)).json();
   }
-  total = first.total || 0;
+  const t = first.total || 0;
   const all = (first.objectIDs || []).slice();
   let offset = all.length;
-  while (total > 0 && offset < Math.min(total, 10000) && offset < 500 + 10000) {
+  while (t > 0 && offset < t && offset <= 9500) {
     const d = await (await fetchT(searchUrl(offset, 500), 20000)).json();
     const page = d.objectIDs || [];
     if (!page.length) break;
@@ -332,21 +344,80 @@ async function fetchIds() {
     offset += page.length;
     if (page.length < 500) break;
   }
-  ids = shuffle([...new Set(all)]);
+  return [...new Set(all)];
+}
+
+/* Cleveland: pinturas europeas CC0 (API open access, todo en un pedido) */
+async function loadCma() {
+  if (cmaData) return cmaData;
+  const r = await fetchT('https://openaccess-api.clevelandart.org/api/artworks/?department=European%20Painting%20and%20Sculpture&has_image=1&cc0=1&type=Painting&limit=1000', 25000);
+  if (!r.ok) throw new Error('cma');
+  const d = await r.json();
+  cmaData = (d.data || []).map(a => ({
+    src: 'cma',
+    title: a.title || '',
+    artistDisplayName: ((((a.creators || [])[0]) || {}).description || '').split(' (')[0] || 'Artista desconocido',
+    objectDate: a.creation_date || '',
+    medium: a.technique || '',
+    primaryImage: (a.images && ((a.images.print && a.images.print.url) || (a.images.full && a.images.full.url) || (a.images.web && a.images.web.url))) || '',
+    primaryImageSmall: (a.images && a.images.web && a.images.web.url) || '',
+    objectURL: a.url || '',
+    tags: [],
+    classification: 'Paintings'
+  })).filter(o => o.primaryImage);
+  return cmaData;
+}
+
+/* MoMA: dataset CC0 embebido (moma-paintings.js), imágenes servidas por moma.org */
+function momaObj(row) {
+  return {
+    src: 'moma',
+    title: row.t || '',
+    artistDisplayName: row.a || 'Artista desconocido',
+    objectDate: row.d || '',
+    medium: row.m || '',
+    primaryImage: row.i || '',
+    primaryImageSmall: row.i || '',
+    objectURL: row.u || '',
+    tags: [],
+    classification: 'Paintings'
+  };
+}
+
+/* pool unificado: descriptores {s:'met'|'moma'|'cma', id|i} */
+async function fetchIds() {
+  const pool = [];
+  const m = S.museum;
+  if (m === 'met' || m === 'all') {
+    for (const id of await fetchMetIds()) pool.push({ s: 'met', id });
+  }
+  if (m === 'moma' || m === 'all') {
+    for (let i = 0; i < MOMA.length; i++) pool.push({ s: 'moma', i });
+  }
+  if (m === 'cma' || m === 'all') {
+    const cma = await loadCma();
+    for (let i = 0; i < cma.length; i++) pool.push({ s: 'cma', i });
+  }
+  if (!pool.length) throw new Error('sin resultados');
+  total = pool.length;
+  ids = shuffle(pool);
   idPos = 0;
   queue = [];
-  if (!ids.length) throw new Error('sin resultados');
 }
 
 const SKIP_CLASS = new Set(['frames', 'drawings', 'photographs', 'textiles']);
 
 /* terminos de iconografia cristiana del vocabulario de tags del Met */
 const RELIGIOUS = new Set(('christ,jesus,christ child,infant jesus,virgin mary,virgin and child,madonna,madonna and child,nativity,holy family,trinity,god,holy spirit,last judgment,last supper,annunciation,resurrection,assumption,ascension,epiphany,baptism,temptation,crucifixion,crucifixions,calvary,golgotha,ecce homo,man of sorrows,pieta,pietas,lamentation,entombment,adoration of the magi,adoration of the shepherds,flight into egypt,pentecost,stigmatization,coronation of the virgin,saints,apostles,evangelists,prophets,sibyls,martyrs,bishops,archbishops,popes,cardinals,abbots,monks,nuns,friars,hermits,priests,clergy,angels,archangels,cherubim,seraphim,devils,satan,demons,magdalene,magi,joseph,bible,bibles,gospel,gospels,psalter,psalters,prayer,prayers,books of hours,book of hours,monasteries,convents,abbey,abbeys,altars,altarpiece,altarpieces,triptychs,polyptychs,crucifix,crucifixes,rosary,rosaries,reliquary,reliquaries,nimbus,halo,halos,croziers,miter,moses,noah,abraham,isaac,jacob,jonah,daniel,job,solomon,david and goliath,judith,susanna,bathsheba,salome,garden of eden,creation,exodus,golden calf,ten commandments').split(','));
+/* fallback por título cuando la fuente no tiene tags (MoMA, Cleveland) */
+const REL_TITLE = /(crucifix|madonna|christ(?!mas)|virgin|piet|last supper|nativity|annunciation|resurrection|golgotha|calvary|magdalene|apostle|evangelist|baptism|adoration of|flight into egypt|holy family|jesus)/i;
 function esReligiosa(o) {
-  for (const t of (o.tags || [])) {
+  const tags = o.tags || [];
+  for (const t of tags) {
     const term = (t.term || '').toLowerCase();
     if (RELIGIOUS.has(term) || term.startsWith('saint ')) return true;
   }
+  if (!tags.length) return REL_TITLE.test(o.title || '');
   return false;
 }
 
@@ -358,16 +429,25 @@ async function refill(size) {
   idPos += batch.length;
   const fails0 = fetchFails;
   const failedIds = [];
-  const objs = await mapLimit(batch, 6, async id => {
+  const objs = await mapLimit(batch, 6, async d => {
     try {
-      const r = await fetchT(API1 + id, 15000);
-      if (!r.ok) { fetchFails++; failedIds.push(id); return null; }
-      const o = await r.json();
-      if (!o.primaryImage && !o.primaryImageSmall) return null;
-      if (o.classification && SKIP_CLASS.has(o.classification.toLowerCase())) return null;
+      let o;
+      if (d.s === 'met') {
+        const r = await fetchT(API1 + d.id, 15000);
+        if (!r.ok) { fetchFails++; failedIds.push(d); return null; }
+        o = await r.json();
+        if (!o.primaryImage && !o.primaryImageSmall) return null;
+        if (o.classification && SKIP_CLASS.has(o.classification.toLowerCase())) return null;
+        o.src = 'met';
+      } else if (d.s === 'moma') {
+        o = momaObj(MOMA[d.i]);
+        if (!o.primaryImage) return null;
+      } else {
+        o = cmaData[d.i];
+      }
       if (S.noReligious && esReligiosa(o)) return null;
       return o;
-    } catch (e) { fetchFails++; failedIds.push(id); return null; }
+    } catch (e) { fetchFails++; failedIds.push(d); return null; }
   });
   loading = false;
   if (g !== gen) { /* lote obtenido con otro filtro: descartar y recargar */
@@ -379,7 +459,7 @@ async function refill(size) {
   lStatus('Colección: ' + fmt(total) + ' obras · ' + queue.length + ' preparadas…');
   if (pendingNext && queue.length && !loadingSlide) { pendingNext = false; next(); }
   else if (queue.length < 8 && idPos < ids.length) {
-    if (fetchFails - fails0 > batch.length / 2) toast('Conexión inestable con el Met; reintentando…');
+    if (fetchFails - fails0 > batch.length / 2) toast('Conexión inestable; reintentando…');
     else refill();
   }
 }
@@ -406,7 +486,7 @@ function show(o) {
   const giveUp = () => {
     loadingSlide = false;
     if (++skipRun < 6) next();
-    else toast('No se pueden cargar las imágenes del Met desde esta red');
+    else toast('No se pueden cargar las imágenes desde esta red');
   };
   const fail = () => {
     if (settled) return;
@@ -468,12 +548,19 @@ function show(o) {
   load();
 }
 
+const SRC_INFO = {
+  met:  ['The Metropolitan Museum of Art, Nueva York', 'el Met'],
+  moma: ['The Museum of Modern Art, Nueva York', 'el MoMA'],
+  cma:  ['The Cleveland Museum of Art, Ohio', 'el Cleveland']
+};
 function fillCaption(o) {
   $('#caption .c-title').textContent = o.title || 'Sin título';
   $('#caption .c-artist').textContent = o.artistDisplayName || o.artistAlphaSort || 'Artista desconocido';
   $('#caption .date').textContent = o.objectDate ? '· ' + o.objectDate : '';
   const med = traducirMedium(o.medium);
-  $('#caption .c-sub').textContent = (med ? med + ' · ' : '') + 'The Metropolitan Museum of Art';
+  const src = SRC_INFO[o.src] || SRC_INFO.met;
+  $('#caption .c-sub').textContent = (med ? med + ' · ' : '') + src[0];
+  $('#caption .src').textContent = src[1];
   $('#caption .c-link').href = o.objectURL || 'https://www.metmuseum.org';
   captionCycle();
 }
@@ -599,15 +686,25 @@ function bindSeg(id, key, after) {
   });
 }
 
+function updateScopeSeg() {
+  const dis = S.museum === 'moma' || S.museum === 'cma';
+  document.querySelectorAll('#segS button').forEach(b => { b.disabled = dis; });
+}
+
 function applySettingsUI() {
   $('#dur').value = S.interval;
   $('#durVal').textContent = S.interval + ' s';
   document.body.classList.toggle('fit-cover', S.fit === 'cover');
-  [['#segQ', 'quality'], ['#segF', 'fit'], ['#segS', 'scope']].forEach(([id, k]) => {
+  [['#segQ', 'quality'], ['#segF', 'fit'], ['#segS', 'scope'], ['#segM', 'museum']].forEach(([id, k]) => {
     $(id).querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === S[k]));
   });
+  if (!MOMA.length) {
+    const b = document.querySelector('#segM button[data-v="moma"]');
+    if (b) { b.disabled = true; b.title = 'Falta moma-paintings.js'; }
+  }
   setPlaying(playing);
   updateReligiousSeg();
+  updateScopeSeg();
 }
 
 async function changeScope() {
@@ -640,6 +737,7 @@ $('#dur').oninput = e => {
 bindSeg('#segQ', 'quality', () => { preloadAhead(); });
 bindSeg('#segF', 'fit', () => { document.body.classList.toggle('fit-cover', S.fit === 'cover'); });
 bindSeg('#segS', 'scope', () => { changeScope(); });
+bindSeg('#segM', 'museum', () => { updateScopeSeg(); changeScope(); });
 
 document.addEventListener('click', e => {
   if (!e.target.closest('#settings') && !e.target.closest('#bSettings'))
@@ -699,7 +797,7 @@ document.querySelectorAll('#controls button, .seg button').forEach(b =>
     $('#hint').classList.add('show');
     setTimeout(() => $('#hint').classList.remove('show'), 9000);
   } catch (e) {
-    lStatus('No se pudo conectar con la API del Met (' + (e.message || 'red') + '). Revisá tu conexión a internet y recargá la página.');
+    lStatus('No se pudo cargar la colección (' + (e.message || 'red') + '). Revisá tu conexión a internet y recargá la página.');
     const sp = document.querySelector('.l-spin'); if (sp) sp.style.display = 'none';
   }
 })();
@@ -709,7 +807,7 @@ window.__met = () => ({
   ready, playing, shown, total, queueLen: queue.length,
   idPos, idsLen: ids.length, fetchFails, errors: window.__errors.slice(0, 5),
   settings: { ...S },
-  cur: cur && { title: cur.title, artist: cur.artistDisplayName, date: cur.objectDate, medium: cur.medium, url: pickImage(cur), tags: (cur.tags || []).map(t => t.term).slice(0, 10) },
+  cur: cur && { src: cur.src, title: cur.title, artist: cur.artistDisplayName, date: cur.objectDate, medium: cur.medium, url: pickImage(cur), tags: (cur.tags || []).map(t => t.term).slice(0, 10) },
   img: (() => {
     const i = document.querySelector('.slide.on img');
     return i && { w: i.naturalWidth, h: i.naturalHeight, kb: i.className, src: i.src.split('/').slice(-2).join('/') };
